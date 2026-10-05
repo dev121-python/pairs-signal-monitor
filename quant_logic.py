@@ -14,7 +14,6 @@ backtest over history.
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 import yfinance as yf
 
 TICKER_A = "V"
@@ -27,9 +26,9 @@ LOOKBACK_DAYS = 250  # enough history to compute a stable hedge ratio + z-score
 
 def compute_hedge_ratio(price_a: pd.Series, price_b: pd.Series) -> float:
     log_a = np.log(price_a)
-    log_b = sm.add_constant(np.log(price_b))
-    model = sm.OLS(log_a, log_b).fit()
-    return model.params.iloc[1]
+    log_b = np.log(price_b)
+    slope, _intercept = np.polyfit(log_b, log_a, 1)
+    return float(slope)
 
 
 def compute_spread(price_a: pd.Series, price_b: pd.Series, hedge_ratio: float) -> pd.Series:
