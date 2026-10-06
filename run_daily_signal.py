@@ -1,17 +1,7 @@
-from fastapi import FastAPI
+from database import save_signal
 from quant_logic import get_current_signal
-from database import save_signal, get_signal_history
 
-app = FastAPI()
-
-
-@app.get("/")
-def read_root():
-    return {"message": "Hello, world"}
-
-
-@app.get("/signal")
-def read_signal():
+if __name__ == "__main__":
     signal = get_current_signal()
     row = {
         "date": signal["as_of_date"],
@@ -23,9 +13,4 @@ def read_signal():
         "position": signal["position"],
     }
     save_signal(row)
-    return signal
-
-
-@app.get("/history")
-def read_history(limit: int = 30):
-    return get_signal_history(limit)
+    print(f"Saved signal for {row['date']}: {row}")
