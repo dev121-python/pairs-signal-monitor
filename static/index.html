@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pairs Signal Monitor — V/MA</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    background: #0b0e14;
+    color: #e6e8ee;
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: #8b93a7; margin-bottom: 24px; font-size: 0.9rem; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: #141926;
+    border: 1px solid #242b3d;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .card .label { color: #8b93a7; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .card .value { font-size: 1.5rem; font-weight: 600; margin-top: 4px; }
+  .pos-flat { color: #8b93a7; }
+  .pos-long_spread { color: #4ade80; }
+  .pos-short_spread { color: #f87171; }
+  .chart-wrap { background: #141926; border: 1px solid #242b3d; border-radius: 10px; padding: 16px; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #242b3d; }
+  th { color: #8b93a7; font-weight: 500; }
+  .error { color: #f87171; }
+</style>
+</head>
+<body>
+  <h1>Pairs Signal Monitor</h1>
+  <div class="sub" id="subtitle">V / MA — loading…</div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="chart-wrap">
+    <canvas id="zscoreChart" height="90"></canvas>
+  </div>
+
+  <div class="chart-wrap">
+    <table id="historyTable">
+      <thead>
+        <tr><th>Date</th><th>Hedge Ratio</th><th>Spread</th><th>Z-score</th><th>Position</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script>
+async function loadDashboard() {
+  try {
+    const [signalRes, historyRes] = await Promise.all([
+      fetch('/signal'),
+      fetch('/history?limit=60'),
+    ]);
+    if (!signalRes.ok) throw new Error('signal fetch failed: ' + signalRes.status);
+    if (!historyRes.ok) throw new Error('history fetch failed: ' + historyRes.status);
+
+    const signal = await signalRes.json();
+    const history = await historyRes.json();
+
+    document.getElementById('subtitle').textContent =
+      `${signal.ticker_a} / ${signal.ticker_b} — as of ${signal.as_of_date}`;
+
+    const posClass = 'pos-' + signal.position;
+    document.getElementById('cards').innerHTML = `
+      <div class="card"><div class="label">Position</div><div class="value ${posClass}">${signal.position.replace('_', ' ')}</div></div>
+      <div class="card"><div class="label">Z-score</div><div class="value">${signal.zscore}</div></div>
+      <div class="card"><div class="label">Spread</div><div class="value">${signal.spread}</div></div>
+      <div class="card"><div class="label">Hedge Ratio</div><div class="value">${signal.hedge_ratio}</div></div>
+    `;
+
+    // history comes back newest-first; reverse for a left-to-right timeline
+    const rows = [...history].reverse();
+    const labels = rows.map(r => r.date);
+    const zscores = rows.map(r => r.zscore);
+
+    new Chart(document.getElementById('zscoreChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Z-score',
+            data: zscores,
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96,165,250,0.1)',
+            tension: 0.25,
+            pointRadius: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#8b93a7' } } },
+        scales: {
+          x: { ticks: { color: '#8b93a7' }, grid: { color: '#242b3d' } },
+          y: { ticks: { color: '#8b93a7' }, grid: { color: '#242b3d' } },
+        },
+      },
+    });
+
+    const tbody = document.querySelector('#historyTable tbody');
+    tbody.innerHTML = history.map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.hedge_ratio}</td>
+        <td>${r.spread}</td>
+        <td>${r.zscore}</td>
+        <td class="pos-${r.position}">${r.position.replace('_', ' ')}</td>
+      </tr>
+    `).join('');
+
+  } catch (err) {
+    document.getElementById('subtitle').innerHTML = `<span class="error">Failed to load: ${err.message}</span>`;
+  }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

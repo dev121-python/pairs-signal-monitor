@@ -1,8 +1,13 @@
 from fastapi import FastAPI
 from quant_logic import get_current_signal
 from database import save_signal, get_signal_history
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
+
+
+app.mount("/dashboard", StaticFiles(directory="static", html=True), name="dashboard")
+
 
 
 @app.get("/")
