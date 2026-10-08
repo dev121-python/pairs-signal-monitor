@@ -1,18 +1,9 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from quant_logic import get_current_signal
 from database import save_signal, get_signal_history
-from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
-
-
-app.mount("/dashboard", StaticFiles(directory="static", html=True), name="dashboard")
-
-
-
-@app.get("/")
-def read_root():
-    return {"message": "Hello, world"}
 
 
 @app.get("/signal")
@@ -34,3 +25,6 @@ def read_signal():
 @app.get("/history")
 def read_history(limit: int = 30):
     return get_signal_history(limit)
+
+
+app.mount("/", StaticFiles(directory="static", html=True), name="dashboard")
