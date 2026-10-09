@@ -65,8 +65,19 @@ def generate_signals(
 
 
 def _fetch_recent_prices(ticker_a: str, ticker_b: str, lookback_days: int) -> pd.DataFrame:
-    raw = yf.download([ticker_a, ticker_b], period=f"{lookback_days}d", auto_adjust=True, progress=False)
+    try:
+        raw = yf.download([ticker_a, ticker_b], period=f"{lookback_days}d", auto_adjust=True, progress=False)
+    except Exception as e:
+        raise RuntimeError(f"Failed to fetch prices from yfinance: {e}") from e
+
+    if raw.empty or "Close" not in raw:
+        raise RuntimeError("yfinance returned no data (possible API issue or market closed with no cached data)")
+
     prices = raw["Close"][[ticker_a, ticker_b]].dropna()
+
+    if prices.empty:
+        raise RuntimeError(f"No overlapping price data for {ticker_a}/{ticker_b} after dropping NaNs")
+
     return prices
 
 
@@ -79,11 +90,19 @@ def get_current_signal() -> dict:
     """
     prices = _fetch_recent_prices(TICKER_A, TICKER_B, LOOKBACK_DAYS)
 
+    if len(prices) < WINDOW:
+        raise RuntimeError(
+            f"Not enough price history ({len(prices)} days) to compute a {WINDOW}-day rolling window"
+        )
+
     hedge_ratio = compute_hedge_ratio(prices[TICKER_A], prices[TICKER_B])
     spread = compute_spread(prices[TICKER_A], prices[TICKER_B], hedge_ratio)
     signals = generate_signals(spread)
 
     latest = signals.iloc[-1]
+    if pd.isna(latest["zscore"]):
+        raise RuntimeError("Latest z-score is NaN — insufficient data in the rolling window")
+
     position_label = {1: "long_spread", -1: "short_spread", 0: "flat"}[int(latest["position"])]
 
     return {

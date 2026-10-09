@@ -29,24 +29,31 @@ Base.metadata.create_all(engine)
 
 def save_signal(signal: dict) -> None:
     session = SessionLocal()
-    existing = session.query(SignalHistory).filter_by(date=signal["date"]).first()
-    if existing:
-        existing.hedge_ratio = signal["hedge_ratio"]
-        existing.spread = signal["spread"]
-        existing.zscore = signal["zscore"]
-        existing.position = signal["position"]
-    else:
-        row = SignalHistory(**signal)
-        session.add(row)
-    session.commit()
-    session.close()
+    try:
+        existing = session.query(SignalHistory).filter_by(date=signal["date"]).first()
+        if existing:
+            existing.hedge_ratio = signal["hedge_ratio"]
+            existing.spread = signal["spread"]
+            existing.zscore = signal["zscore"]
+            existing.position = signal["position"]
+        else:
+            row = SignalHistory(**signal)
+            session.add(row)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def get_signal_history(limit: int = 30) -> list[dict]:
     session = SessionLocal()
-    rows = session.query(SignalHistory).order_by(SignalHistory.id.desc()).limit(limit).all()
-    session.close()
-    return [
-        {c.name: getattr(row, c.name) for c in SignalHistory.__table__.columns}
-        for row in rows
-    ]
+    try:
+        rows = session.query(SignalHistory).order_by(SignalHistory.id.desc()).limit(limit).all()
+        return [
+            {c.name: getattr(row, c.name) for c in SignalHistory.__table__.columns}
+            for row in rows
+        ]
+    finally:
+        session.close()
