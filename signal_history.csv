@@ -1,0 +1,2 @@
+id,date,ticker_a,ticker_b,hedge_ratio,spread,zscore,position
+1,2026-11-13,V,MA,1.0465,-0.741844,-1.0742,flat
