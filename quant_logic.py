@@ -66,7 +66,7 @@ def generate_signals(
 
 def _fetch_recent_prices(ticker_a: str, ticker_b: str, lookback_days: int) -> pd.DataFrame:
     try:
-        raw = yf.download([ticker_a, ticker_b], period=f"{lookback_days}d", auto_adjust=True, progress=False)
+        raw = yf.download([ticker_a, ticker_b], period=f"{lookback_days}d", auto_adjust=True, progress=False , threads = False)
     except Exception as e:
         raise RuntimeError(f"Failed to fetch prices from yfinance: {e}") from e
 
